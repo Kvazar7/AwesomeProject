@@ -46,6 +46,7 @@ const CreatePost = ({navigation}) => {
   const handleTakePhoto = async () => {
     let result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       aspect: [17, 12],
       quality: 1,
     });
@@ -85,7 +86,10 @@ const CreatePost = ({navigation}) => {
 
       <TouchableOpacity style={styles.postPicture} onPress={handleChoosePhoto} onLongPress={handleTakePhoto}>
         {photo ? (
-          <Image source={{ uri: photo }} style={styles.photo} />
+          <Image 
+            source={{ uri: photo }} 
+            style={styles.photo} 
+          />
         ) : (
           <Text style={styles.photoPlaceholder}>Клікни щоб обрати фото{'\n'}Утримуй щоб зробити фото</Text>
         )}

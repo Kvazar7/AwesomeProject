@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { View, Image, Text, TouchableOpacity, StyleSheet, TextInput, StatusBar } from 'react-native';
-import { Camera } from "expo-camera";
+import { View, 
+        Image, 
+        Text, 
+        TouchableOpacity, 
+        StyleSheet, 
+        TextInput, 
+        StatusBar } from 'react-native';
+import { Camera, CameraView  } from "expo-camera";
 import * as MediaLibrary from "expo-media-library";
 
-const CreatePost = () => {
+const CreatePost = ({navigation}) => {
   const [hasPermission, setHasPermission] = useState(null);
   const [cameraRef, setCameraRef] = useState(null);
   const [photo, setPhoto] = useState(null);
@@ -14,7 +20,14 @@ const CreatePost = () => {
 
   useEffect(() => {
     (async () => {
-      console.log("Camera Constants:", Camera?.Constants);
+      // console.log("Camera:", Camera);
+      // console.log("CameraModule:", CameraModule);
+      // console.log("CameraView:", CameraModule.CameraView);
+
+        // const Camera = CameraModule.Camera;
+        //   console.log("Camera component:", Camera);
+        //   console.log("Camera Constants:", Camera?.Constants);
+
       if (!Camera.Constants) {
         console.warn("Camera.Constants is undefined.");
       }
@@ -73,9 +86,7 @@ const CreatePost = () => {
           <Text style={styles.headerPageName}>
             Створити публікацію
           </Text>
-          
-        </View>
-  
+      </View>
   
       <View style={styles.contentContainer}>
   
@@ -85,12 +96,12 @@ const CreatePost = () => {
           {photo ? (
             <Image source={{ uri: photo }} style={styles.photo} />
           ) : (
-            <Camera 
+            <CameraView 
               style={styles.camera} 
               type={type} 
-              ref={ref => setCameraRef(ref)} >
-            
-            </Camera>
+              ref={ref => setCameraRef(ref)} 
+            >
+            </CameraView>
           )}
   
           <TouchableOpacity 
@@ -228,6 +239,15 @@ const CreatePost = () => {
       height: undefined,
       aspectRatio: 17/13,
   
+      borderWidth: 1,
+      borderColor: '#E8E8E8',
+      borderRadius: 8,
+    },
+
+    camera: {
+      flex: 1, 
+      width: "100%",
+
       borderWidth: 1,
       borderColor: '#E8E8E8',
       borderRadius: 8,
