@@ -1,117 +1,122 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { View, 
         Image, 
         Text, 
         TouchableOpacity, 
         StyleSheet, 
-        TextInput, 
-        StatusBar } from 'react-native';
+        TextInput, } from 'react-native';
 import { Camera, CameraView  } from "expo-camera";
 import * as MediaLibrary from "expo-media-library";
+import * as Location from 'expo-location';
+import uuid from 'react-native-uuid';
+import { uploadPhotoToFirebase, savePostToAsyncStorage, savePostToFirestore } from "../Services/CreatPostService"
+import { db, storage } from '..//Сonfig/firebaseConfig'; 
 
 const CreatePost = ({navigation}) => {
   const [hasPermission, setHasPermission] = useState(null);
-  const [cameraRef, setCameraRef] = useState(null);
+  const cameraRef = useRef(null);
   const [photo, setPhoto] = useState(null);
-  const [type, setType] = useState(Camera?.Constants?.Type?.back || "back");
   const [description, setDescription] = useState(''); 
-  const [location, setLocation] = useState(null);
   const [locationInput, setLocationInput] = useState('');
+  const [locationCoord, setLocation] = useState(null);
+  const [isLocationFetching, setIsLocationFetching] = useState(false); 
 
   useEffect(() => {
     (async () => {
-      // console.log("Camera:", Camera);
-      // console.log("CameraModule:", CameraModule);
-      // console.log("CameraView:", CameraModule.CameraView);
-
-        // const Camera = CameraModule.Camera;
-        //   console.log("Camera component:", Camera);
-        //   console.log("Camera Constants:", Camera?.Constants);
-
-      if (!Camera.Constants) {
-        console.warn("Camera.Constants is undefined.");
-      }
-      const { status: cameraStatus } = await Camera.requestCameraPermissionsAsync();
-      const mediaLibraryStatus = await MediaLibrary.requestPermissionsAsync();
-
-      if (cameraStatus.status !== "granted") {
-        console.warn("Camera access not granted.");
-      }
-      if (mediaLibraryStatus.status !== "granted") {
-        console.warn("Media library access not granted.");
-      }
-
-      setHasPermission(cameraStatus === "granted" && mediaLibraryStatus.status === "granted");
+      const cameraPermission = await Camera.requestCameraPermissionsAsync();
+      const mediaLibraryPermission = await MediaLibrary.requestPermissionsAsync();
+      setHasPermission(
+        cameraPermission.status === "granted" && mediaLibraryPermission.status === "granted"
+      );
     })();
   }, []);
 
-  if (hasPermission === null) {
-    return <View />;
-  }
-  if (!hasPermission) {
-    return <Text>No access to camera</Text>;
-  }
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      clearPost(); 
+    });
+    return unsubscribe; 
+  }, [navigation]);
 
   const handleTakePhoto = async () => { 
-    if (cameraRef) { 
-      const photo = await cameraRef.takePictureAsync(); 
+    if (cameraRef.current) { 
+      const photo = await cameraRef.current.takePictureAsync(); 
       setPhoto(photo.uri); 
       await MediaLibrary.createAssetAsync(photo.uri); 
     } 
   };
 
-  // const handleChoosePhoto = async () => { 
-  //   'Реалізуйте вибір фото з галереї, якщо потрібно' 
-  // };
-
-  const getLocation = async () => {
-    let location = await Location.getCurrentPositionAsync({});
-    setLocation(location.coords);
-    setLocationInput(`Lat: ${location.coords.latitude}, Long: ${location.coords.longitude}`);
+  function getId() {
+    return uuid.v4();
   };
 
+  const publishPost = async () => {
+    setIsLocationFetching(true);
+    try {
+      const location = await Location.getCurrentPositionAsync({});
+      setLocation(location.coords);
+  
+      if (photo && description.trim() && locationInput !== "") {
+        // Завантаження фото
+        const photoURL = await uploadPhotoToFirebase(photo, storage);
+  
+        // Створення об'єкта поста
+        const newPost = {
+          id: getId(), // Генерація унікального ID
+          photo: photoURL,
+          description,
+          locationInput,
+          locationCoord: location.coords,
+        };
+  
+        // Збереження поста
+        await savePostToAsyncStorage(newPost);
+        await savePostToFirestore(newPost, db);
+  
+        navigation.navigate("Posts", { newPost });
+      } else {
+        alert("Будь ласка, заповніть всі поля.");
+      }
+    } catch (error) {
+      console.error("Помилка збереження постів:", error);
+    } finally {
+      setIsLocationFetching(false);
+    }
+  };
+  
   const clearPost = () => { 
     setPhoto(null); 
     setDescription(''); 
-    setLocationInput(''); };
+    setLocationInput(''); 
+  };
+
+  if (hasPermission === null) {
+    return <Text>Запит доступу...</Text>;
+  }
+  if (!hasPermission) {
+    return <Text>No access to camera</Text>;
+  }
 
     return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-        <TouchableOpacity style={styles.BackBtn}
-            onPress={() => navigation.goBack()}  
-          >
-            <Image source={require('../Img/arrow-left.png')} />   
-          </TouchableOpacity>
-          <Text style={styles.headerPageName}>
-            Створити публікацію
-          </Text>
-      </View>
-  
       <View style={styles.contentContainer}>
-  
-        <View 
-          style={styles.postPicture} 
-        >
+        <View style={styles.postPicture}>
           {photo ? (
             <Image source={{ uri: photo }} style={styles.photo} />
           ) : (
             <CameraView 
               style={styles.camera} 
-              type={type} 
-              ref={ref => setCameraRef(ref)} 
-            >
-            </CameraView>
+              ref={cameraRef} 
+              facing="back"
+            />
           )}
   
           <TouchableOpacity 
             style={styles.takePhotoIcon} 
-            onPress={handleTakePhoto}> 
+            onPress={handleTakePhoto}
+          > 
               <Image source={require('../Img/Ellipse.png')} /> 
           </TouchableOpacity>
-  
         </View>
-  
         <Text style={styles.postPicturePlaceholder}>
           { photo ? 'Редагувати фото' : 'Завантажити фото '} 
         </Text>
@@ -119,22 +124,17 @@ const CreatePost = ({navigation}) => {
         <View style={styles.discriptionContainer} >
           <TextInput
             style={styles.discription }
-            type="text"
-            name="discription"
             inputMode="text"
             required
             placeholder="Назва..."
             placeholderTextColor="#BDBDBD"
             cursorColor="#BDBDBD"
-            value={description}
+
             onChangeText={setDescription}
-            >
-          </TextInput>
-  
+            value={description}
+            />
           <TextInput
             style={styles.locationDiscription}
-            type="text"
-            name="location"
             inputMode="text"
             required
             placeholder="Місце..."
@@ -143,79 +143,44 @@ const CreatePost = ({navigation}) => {
   
             onChangeText={setLocationInput}
             value={locationInput}
-            >
-              
-          </TextInput>
-  
-            <TouchableOpacity title="Get Location" onPress={getLocation}  >
+            />
+            <View>
               <Image style={styles.locationIcon} source={require('../Img/locationIcon.png')} />
-            </TouchableOpacity>
+            </View>
   
           <TouchableOpacity 
-            style={[styles.publishBtn, photo, description, locationInput && styles.publishBtnReady]}
-            onPress={getLocation} >
-            <Text 
-              style={[styles.publishBtnText, photo, description, locationInput && styles.publishBtnTextReady]}>
+            style={[
+              styles.publishBtn, 
+              photo && description && locationInput ? styles.publishBtnReady : {}
+            ]}
+            onPress={publishPost}
+          >
+            <Text style={[
+              styles.publishBtnText, 
+              photo && description && locationInput ? styles.publishBtnTextReady : {}
+              ]}
+            >
               Опубліковати
             </Text>
           </TouchableOpacity>
-  
+
           <TouchableOpacity 
             style={styles.trashBtn} 
-            onPress={clearPost}  >
+            onPress={clearPost}
+          >
             <Image style={styles.trashIcon} source={require('../Img/trash.png')} />
           </TouchableOpacity>
-  
         </View>
-        
       </View>
-  
-      <StatusBar style="auto" />
-      </View>
-      
     );
   };
   
   const styles = StyleSheet.create({
-      
-    container:{
-      flex: 1,
-      backgroundColor: '#FFFFFF',
-      
-    },
-  
-    header: {
-      height: 88,
-      borderBottomWidth: 1,
-      borderColor: '#BDBDBD',
-      flexDirection: 'row',
-      alignItems: 'flex-end',
-      justifyContent: 'center'
-  
-    },
-  
-    headerPageName: {
-      fontFamily: 'Roboto-Medium',
-      fontSize: 17,
-      fontWeight: '500',
-      lineHeight: 22,
-      letterSpacing: 0.41,
-  
-      paddingBottom: 11,
-    },
-  
-    BackBtn: {
-      position: 'absolute',
-      paddingBottom: 10,
-      left: 10,
-  
-    },
   
     contentContainer: {
       paddingTop: 32,
       paddingLeft: 16,
       paddingRight: 16,
-  
     },
     
     postPicture: {
@@ -223,12 +188,10 @@ const CreatePost = ({navigation}) => {
       width: '100%',
       height: undefined,
       aspectRatio: 17/12,
-  
       borderWidth: 1,
       borderColor: '#E8E8E8',
       borderRadius: 8,
       backgroundColor: '#F6F6F6',
-  
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -238,7 +201,6 @@ const CreatePost = ({navigation}) => {
       width: '100%',
       height: undefined,
       aspectRatio: 17/13,
-  
       borderWidth: 1,
       borderColor: '#E8E8E8',
       borderRadius: 8,
@@ -247,7 +209,6 @@ const CreatePost = ({navigation}) => {
     camera: {
       flex: 1, 
       width: "100%",
-
       borderWidth: 1,
       borderColor: '#E8E8E8',
       borderRadius: 8,
@@ -263,7 +224,6 @@ const CreatePost = ({navigation}) => {
       fontSize: 16,
       fontWeight: '500',
       color: '#BDBDBD',
-  
       top: -75,
     },
   
@@ -272,7 +232,6 @@ const CreatePost = ({navigation}) => {
       fontSize: 16,
       fontWeight: '500',
       color: '#BDBDBD',
-  
     },
   
     discription: {
@@ -281,7 +240,6 @@ const CreatePost = ({navigation}) => {
       marginTop: 16,
       padding: 13,
       paddingLeft: 0,
-      
     },
   
     locationDiscription: {
@@ -290,8 +248,6 @@ const CreatePost = ({navigation}) => {
       marginTop: 16,
       paddingLeft: 28,
       padding: 13,
-      
-      
     },
   
     locationIcon: {
@@ -318,7 +274,6 @@ const CreatePost = ({navigation}) => {
       borderRadius: 100,
       justifyContent: 'center',
       alignItems: 'center',
-      
     },
   
     publishBtnText: {
@@ -328,7 +283,6 @@ const CreatePost = ({navigation}) => {
       lineHeight: 19,
       letterSpacing: 0.01,
       color: '#BDBDBD',
-  
     },
   
     publishBtnTextReady: {
@@ -338,7 +292,6 @@ const CreatePost = ({navigation}) => {
       lineHeight: 19,
       letterSpacing: 0.01,
       color: '#FFFFFF',
-  
     },
   
     trashBtn: {
@@ -349,10 +302,8 @@ const CreatePost = ({navigation}) => {
       borderRadius: 20,
   
       alignSelf: 'center',
-  
       justifyContent: 'center',
       alignItems: 'center',
-  
     },
   
     trashIcon: {
@@ -362,3 +313,4 @@ const CreatePost = ({navigation}) => {
   });
   
   export default CreatePost;
+  

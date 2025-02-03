@@ -1,209 +1,170 @@
 import React, { useState, useEffect } from "react";
-import {  ImageBackground, 
-          StyleSheet, 
+import {  StyleSheet, 
           Text, 
           View, 
           Image, 
-          TouchableOpacity, 
-          Platform, 
-          StatusBar,
-          KeyboardAvoidingView } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
+          TouchableOpacity,
+          FlatList } from 'react-native';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 // import { useNavigation } from "@react-navigation/native";
 
-const Profile = ({navigation}) => {
+const Profile = ({ route, navigation }) => {
   // const navigation = useNavigation;
-
-  const [photo, setPhoto] = useState(null);
+  const [posts, setPosts] = useState([]);
   
-  const handleChoosePhoto = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
-    if (!result.canceled) {
-      const uri = result.assets[0].uri;
-      setPhoto(uri);
-      savePhoto(uri);
-    }
-  };
-
-  const handleTakePhoto = async () => {
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
-    if (!result.canceled) {
-      const uri = result.assets[0].uri;
-      setPhoto(uri);
-      savePhoto(uri);
-    }
-  };
-
-  const savePhoto = async (uri) => {
-    try {
-      await AsyncStorage.setItem('userPhoto', uri);
-      alert('Photo saved successfully!');
-    } catch (e) {
-      console.error('Failed to save the photo.', e);
-    }
-  };
-
-  const loadPhoto = async () => {
-    try {
-      const savedPhoto = await AsyncStorage.getItem('userPhoto');
-      if (savedPhoto) {
-        setPhoto(savedPhoto);
-      }
-    } catch (e) {
-      console.error('Failed to load the photo.', e);
-    }
-  };
-
-  const delPhoto = async () => {
-    setPhoto(null)
-  };
-
-  const handleLogOut = async (navigation) => {
-    try {
-      await AsyncStorage.removeItem('session'); 
-      navigation.navigate('Login');
-    } catch (e) {
-      console.error('Failed to log out.', e);
-    }
-  };
-
   useEffect(() => {
-    loadPhoto();
+    const loadPosts = async () => {
+      try {
+        const storedPosts = await AsyncStorage.getItem('posts');
+        if (storedPosts) {
+          setPosts(JSON.parse(storedPosts));
+        }
+      } catch (error) {
+        console.error('Помилка завантаження постів:', error);
+      }
+    };
+    loadPosts();
   }, []);
+  
+  useEffect(() => {
+    const savePosts = async (updatedPosts) => {
+      try {
+        await AsyncStorage.setItem('posts', JSON.stringify(updatedPosts));
+      } catch (error) {
+        console.error('Помилка збереження постів:', error);
+      }
+    };
+  
+    if (route?.params?.newPost) {
+      console.log("New post received:", route.params.newPost);
+      setPosts((prevPosts) => {
+        const isDuplicate = prevPosts.some(post => post.id === route.params.newPost.id);
+        if (!isDuplicate) {
+          const updatedPosts = [route.params.newPost, ...prevPosts];
+            savePosts(updatedPosts);
+          return updatedPosts;
+        }  
+        return prevPosts;
+      });
+    }
+  }, [route.params?.newPost?.id]);
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-      >
-    <ImageBackground
-          source={require('../Img/PhotoBG.png')}
-          style={styles.backgroundimage}
-          >
-    <View style={styles.formWrapper}>
-        
-    <TouchableOpacity style={styles.userPhoto} 
-          onPress={handleChoosePhoto} 
-          onLongPress={handleTakePhoto}>
-            {photo ? (
-              <Image source={{ uri: photo }} style={styles.photo} />
-              ) : (
-              <Text style={styles.photoPlaceholder}>Tap to choose photo,{'\n'}long press to take a photo</Text>
-            )}
-            {photo ? (
-              <TouchableOpacity style={styles.userPhotoDel}
-                  onPress={delPhoto}>
-                <Image source={require('../Img/del.png')} />
+  <>
+    <FlatList
+        style={styles.postListContainer}
+        data={posts}
+        keyExtractor={( item ) => item.id.toString()}
+        renderItem={({ item }) => (
+      <View style={styles.postContainer}>
+        <Image 
+          source={{ uri: item.photo }}
+          style={styles.postPicture} 
+        />
+          <Text style={styles.myComent}>
+            {item.description}
+          </Text>
+          <View style={styles.discription}>
+            <TouchableOpacity 
+              style={styles.leftPartDiscription}
+              onPress={() => navigation.navigate('ComentsScreen')}
+            >
+              <Image style={styles.comentsIcon} source={require('../Img/noOneCommentIcon.png')} />
+                <Text style={styles.comentCounter}>
+                  100
+                </Text>
+            </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.rightPartDiscription}
+                onPress={() => navigation.navigate('MapScreen', { 
+                  latitude: item.locationCoord.latitude, 
+                  longitude: item.locationCoord.longitude,
+                  description: item.description,
+                })}
+              >
+                <Image style={styles.locationIcon} source={require('../Img/locationIcon.png')} />
+                  <Text style={styles.locationDiscription}>
+                    {item.locationInput}
+                  </Text>
               </TouchableOpacity>
-            ) : (
-              <TouchableOpacity style={styles.userPhotoAdd}
-                  onPress={handleChoosePhoto} 
-                  onLongPress={handleTakePhoto}>
-                <Image source={require('../Img/add.png')} />
-              </TouchableOpacity>
-
-            )}
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.logOutBtn}
-          onPress={() => handleLogOut(navigation)}  
-        >
-          <Image source={require('../Img/log-out.png')} />   
-        </TouchableOpacity>
-
-        <Text style={styles.header}>User Name</Text>
-        
+          </View>
       </View>
-      </ImageBackground>
-      <StatusBar style="auto" />
-    </KeyboardAvoidingView>
-      
+    )}
+    />
+  </>
   );
 };
 
 const styles = StyleSheet.create({
-
-  container: {
-    flex: 1,
-  },
- 
-  formWrapper: {
-    flex: 1,
-    backgroundColor: '#FFFF',
-    marginTop: 147,
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    paddingHorizontal: 16,
-    paddingTop: 92,
+  // Перевірити всі стилі !!!
+    
+  postListContainer: {
+    flex: 1, 
+    paddingTop: 32,
     paddingBottom: 32,
-    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 20,
+
+  },
+
+  postContainer: {
+    marginBottom: 32,
     
   },
 
-  backgroundimage: {
-    flex: 1,
-    resizeMode: 'cover',
-  },
+  postPicture: {
+    marginBottom: 8,
+    width: '100%',
+    height: undefined,
+    aspectRatio: 17/12,
 
-  userPhoto: {
-    position: 'absolute',
-    backgroundColor: '#F6F6F6',
-    borderRadius: 16,
-    width: 120,
-    height: 120,
-    top: -60,
-    alignSelf: 'center',
-    padding: 10,
-  },
-
-  photoPlaceholder: {
-    color: "#BDBDBD"
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+    borderRadius: 8,
 
   },
 
-  photo: {
-    position: 'absolute',
-    width: 120,
-    height: 120,
-    borderRadius: 16,
-
-  },
-
-  userPhotoAdd: {
-    top: -5,
-    left: 95,
-
-  },
-
-  userPhotoDel: {
-    top: 65,
-    left: 92,
-
-  },
-
-  logOutBtn: {
-    position: 'absolute',
-    top: 22,
-    right: 16,
-
-  },
-
-  header: {
+  myComent: {
     fontFamily: 'Roboto',
-    fontSize: 30,
+    fontSize: 16,
     fontWeight: '500',
-    lineHeight: 35,
-    letterSpacing: 0.01,
+    color: '#212121',
+
+  },
+
+  discription: {
+    marginTop: 8,
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-between',
+    
+  },
+
+  leftPartDiscription: {
+    flexDirection: 'row',
+
+  },
+
+  rightPartDiscription: {
+    flexDirection: 'row',
+
+  },
+
+  comentsIcon: {
+    flexDirection: 'row',
+    marginRight: 4,
+
+  },
+
+  locationIcon: {
+    alignItems: 'center',
+    marginLeft: 10,
+    marginRight: 6,
+    
+  },
+
+  locationDiscription: {
+    textDecorationLine: 'underline',
     
   },
 

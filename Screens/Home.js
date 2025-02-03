@@ -1,6 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { StyleSheet, Image, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Image, TouchableOpacity } from 'react-native';
 
 import PostsScreen from './PostsScreen';
 import CreatePostScreen from './CreatPostsScreen';
@@ -11,12 +11,12 @@ const Tab = createBottomTabNavigator();
 const HomeScreen = () => {
   return (
     <Tab.Navigator 
-          screenOptions={{ 
-            headerShown: false, 
-            tabBarStyle: styles.tabBar, 
-            tabBarShowLabel: false,
-            tabBarButton: (props) => <CustomTabBarButton {...props} />,
-          }} 
+      screenOptions={{ 
+        headerShown: false, 
+        tabBarStyle: styles.tabBar, 
+        tabBarShowLabel: false,
+        tabBarButton: (props) => <CustomTabBarButton {...props} />,
+      }} 
     >
       <Tab.Screen name="Posts" 
                   component={PostsScreen} 
@@ -68,10 +68,11 @@ const CustomTabBarButton = ({ children, onPress }) => (
 const styles = StyleSheet.create({ 
   tabBar: {
     borderTopWidth: 1,
-    height: 85, 
+    height: 83, 
     borderColor: '#BDBDBD', 
     paddingHorizontal: 82,
     paddingTop: 15,
+    // paddingBottom: 34,
     
   },
 

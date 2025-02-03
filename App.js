@@ -7,6 +7,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import LoginScreen from "./Screens/LoginScreen";
 import RegistrationScreen from "./Screens/RegistrationScreen";
 import HomeScreen from "./Screens/Home";
+import ComentsScreen from './Screens/ComentsScreen';
 import MapScreen from './Screens/MapScreen';
 
 import { UserProvider } from './Component/UserContext';
@@ -34,8 +35,9 @@ export default function App() {
           <MainStack.Screen name="Registration" component={RegistrationScreen} />
           
           <MainStack.Screen name="Home" component={HomeScreen}/>
+          <MainStack.Screen name="ComentsScreen" component={ComentsScreen} />
           <MainStack.Screen name="MapScreen" component={MapScreen} />
-
+          
         </MainStack.Navigator>
       </NavigationContainer>
     </View>

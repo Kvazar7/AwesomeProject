@@ -1,195 +1,113 @@
-import React, { useContext } from "react";
+import React, { useState, useEffect } from "react";
 import {  StyleSheet, 
           Text, 
           View, 
-          SafeAreaView,
+          FlatList,
           Image, 
-          TouchableOpacity, 
-          StatusBar, } from 'react-native';
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { UserContext } from "./UserContext";
+          TouchableOpacity, } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const Posts = ({navigation}) => {
+const Posts = ({ route, navigation }) => {
+  const [posts, setPosts] = useState([]);
 
-  const { photo, login, email } = useContext(UserContext);
+  useEffect(() => {
+    const loadPosts = async () => {
+      try {
+        const storedPosts = await AsyncStorage.getItem('posts');
+        if (storedPosts) {
+          setPosts(JSON.parse(storedPosts));
+        }
+      } catch (error) {
+        console.error('Помилка завантаження постів:', error);
+      }
+    };
+    loadPosts();
+  }, []);
 
-  const handleLogOut = async (navigation) => {
-    try {
-      await AsyncStorage.removeItem('session'); 
-      navigation.navigate('Login');
-    } catch (e) {
-      console.error('Failed to log out.', e);
+  useEffect(() => {
+    const savePosts = async (updatedPosts) => {
+      try {
+        await AsyncStorage.setItem('posts', JSON.stringify(updatedPosts));
+      } catch (error) {
+        console.error('Помилка збереження постів:', error);
+      }
+    };
+
+    if (route?.params?.newPost) {
+      console.log("New post received:", route.params.newPost);
+      setPosts((prevPosts) => {
+        const isDuplicate = prevPosts.some(post => post.id === route.params.newPost.id);
+        if (!isDuplicate) {
+          const updatedPosts = [route.params.newPost, ...prevPosts];
+          savePosts(updatedPosts);
+          return updatedPosts;
+        }  
+        return prevPosts;
+      });
     }
-  };
-   
+  }, [route.params?.newPost?.id]);
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerPageName}>
-          Публікації
-        </Text>
-        <TouchableOpacity style={styles.logOutBtn}
-          onPress={() => handleLogOut(navigation)}  
-        >
-          <Image source={require('../Img/log-out.png')} />   
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.contentContainer}>
-
-        <View style={styles.userProfileContainer}>
-
-        {photo ? (
-              <Image source={{ uri: photo }} style={styles.photo} />
-              ) : (
-              <Image style={styles.userPhoto} />
-            )}
-
-          <View>
-            <Text style={styles.userName}>
-                {login}
-            </Text>
-            <Text style={styles.userEmail}>
-                {email}
-            </Text>
-          </View>
-
-        </View>
-
-        <View style={styles.postContainer}>
-
-            <Image style={styles.postPicture} >
-
-            </Image>
-
-            <Text style={styles.myComent}>
-              Щось - десь
-
-            </Text>
-
-            <View style={styles.discription}>
-              <View style={styles.leftPartDiscription}>
-
-                <Image style={styles.comentsIcon} source={require('../Img/noOneCommentIcon.png')} />
-
-           
-                <Text style={styles.comentCounter}>
-                  100
-
+      <>
+        <FlatList
+          style={styles.postListContainer}
+            data={posts}
+            keyExtractor={( item ) => item.id.toString()}
+            renderItem={({ item }) => (
+            <View style={styles.postContainer}>
+                <Image 
+                  source={{ uri: item.photo }}
+                  style={styles.postPicture} 
+                />
+                <Text style={styles.myComent}>
+                  {item.description}
                 </Text>
-              </View>
-
-              <TouchableOpacity style={styles.rightPartDiscription}
-              onPress={() => navigation.navigate('MapScreen')}
-              >
-
-                <Image style={styles.locationIcon} source={require('../Img/locationIcon.png')} />
-
-                <Text style={styles.locationDiscription}>
-                 Де воно було
-
-                </Text>
-              </TouchableOpacity>
-
+                <View style={styles.discription}>
+                  <TouchableOpacity 
+                    style={styles.leftPartDiscription}
+                    onPress={() => navigation.navigate('ComentsScreen')}
+                  >
+                    <Image style={styles.comentsIcon} source={require('../Img/noOneCommentIcon.png')} />
+                    <Text style={styles.comentCounter}>
+                      100
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.rightPartDiscription}
+                    onPress={() => navigation.navigate('MapScreen', { 
+                      latitude: item.locationCoord.latitude, 
+                      longitude: item.locationCoord.longitude,
+                      description: item.description,
+                      
+                    })}
+                  >
+                    <Image style={styles.locationIcon} source={require('../Img/locationIcon.png')} />
+                    <Text style={styles.locationDiscription}>
+                      {item.locationInput}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
             </View>
 
-        </View>
-
-      </View>
-
-      <StatusBar style="auto" />
-    </SafeAreaView>
+          )}
+        />
+      </>
   );
 };
 
 const styles = StyleSheet.create({
     
-  container:{
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    
-  },
-
-  header: {
-    height: 88,
-    borderBottomWidth: 1,
-    borderColor: '#BDBDBD',
-    
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'center'
-
-  },
-
-  headerPageName: {
-    fontFamily: 'Roboto-Medium',
-    fontSize: 17,
-    lineHeight: 22,
-    letterSpacing: 0.41,
-
-    paddingBottom: 11,
-  },
-
-  logOutBtn: {
-    position: 'absolute',
-    paddingBottom: 10,
-    right: 10,
-
-  },
-
-  contentContainer: {
+  postListContainer: {
+    // flex: 1,
     paddingTop: 32,
-    paddingLeft: 16,
-    paddingRight: 16,
-
-  },
-
-  userProfileContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-
-  },
-
-  userPhoto: {
-    height: 60,
-    width: 60,
-    borderRadius: 16,
-    borderWidth: 0.1,
-    borderColor: 'black',
-
-    backgroundColor: 'gray',
-  },
-
-  photo: {
-    height: 60,
-    width: 60,
-    borderRadius: 16,
-    borderWidth: 0.1,
-    borderColor: 'black',
-
-  },
-
-  userName: {
-    fontFamily: 'Roboto',
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#212121',
-    
-  },
-
-  userEmail: {
-    fontFamily: 'Roboto',
-    fontSize: 11,
-    fontWeight: '400',
-    color: '#212121',
-    opacity: 0.8,
+    paddingBottom: 32,
+    marginBottom: 200, // зроблено трохи навмання, для відступу від TAB-bar, треба якось окультурити ))
 
   },
 
   postContainer: {
-    marginTop: 32,
-
+    marginBottom: 32,
+    
   },
 
   postPicture: {

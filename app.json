@@ -9,8 +9,10 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff",
-      "newArchEnabled": true
+      "backgroundColor": "#ffffff"
+    },
+    "extra": {
+      "googleMapsApiKey": "AIzaSyAuvPLvVEv3TVxhX173ReZR8R6Uw2qmWyI"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -25,7 +27,6 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       }
-      
     },
     
     "web": {
@@ -34,6 +35,7 @@
     "plugins": [
       "expo-font"
     ],
-    "sdkVersion": "52.0.0"
+    "sdkVersion": "52.0.0",
+    "newArchEnabled": true
   }
 }

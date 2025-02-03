@@ -10,43 +10,27 @@ import {  ImageBackground,
           Keyboard,
           Platform,
           TouchableOpacity } from 'react-native';
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import uuid from 'react-native-uuid';
+import { handleLogin } from '../Services/AuthService';
 // import { useNavigation } from "@react-navigation/native";
 
-const Login = ({navigation}) => {
+const Login = ({ navigation }) => {
   // const navigation = useNavigation;
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [session, setSessionToken] = useState('');
-
-  function getRandom() {
-    return uuid.v4();
-  };
-
-  const signIn = () => {
-    console.debug(`Email: ${email}; Password: ${password}. Token: ${session}`);
-  };
   
-  const handleLogin = async () => {
-    const storedLogin = await AsyncStorage.getItem('login'); 
-    const storedEmail = await AsyncStorage.getItem('email');
-    const storedPassword = await AsyncStorage.getItem('password');
-    if (email === storedEmail && password === storedPassword) {
-      const sessionToken = getRandom();
-    await AsyncStorage.setItem('session', sessionToken);
-    setSessionToken(sessionToken);
-      signIn();
-      navigation.navigate('Home', { username: storedLogin });
-    } else {
-      alert('Invalid login or password');
-    }
-  };
-
   const [activeField, setActiveField] = useState(null);
   const [isShowKeyboard, setIsShowKeyboard] = useState(true);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+
+  const login = async () => {
+    try {
+        const user = await handleLogin(email, password );
+        console.log('User registered:', user);
+        navigation.navigate("Home", { username: login });
+    } catch (error) {
+        alert("Failed to register. Please try again.");
+    }
+  };
   
   const togglePasswordVisibility = () => {
     setIsPasswordVisible(!isPasswordVisible);
@@ -65,6 +49,17 @@ const Login = ({navigation}) => {
       hideSubscription.remove();
     };
   }, []);
+  
+  // const handleLogin = async () => {
+  //   try {
+  //     const userCredential = await signInWithEmailAndPassword(auth, email, password);
+  //     console.log('User signed in:', userCredential.user);
+  //     navigation.navigate('Home', { username: userCredential.user.email });
+  //   } catch (error) {
+  //     console.error('Error during login:', error.message);
+  //     alert('Invalid login or password');
+  //   }
+  // };
 
   const getShowKeyboardStyle = () => {
     return isShowKeyboard ? styles.formWrapper : styles.formWrapperIsActive;
@@ -72,90 +67,86 @@ const Login = ({navigation}) => {
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-    
-    <KeyboardAvoidingView 
-    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    style={styles.container}
-    >
-      <ImageBackground
-        source={require('../Img/PhotoBG.png')}
-        style={styles.backgroundimage}
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.container}
       >
-        <View style={ getShowKeyboardStyle() }>
+        <ImageBackground
+          source={require('../Img/PhotoBG.png')}
+          style={styles.backgroundimage}
+        >
 
-        <Text style={styles.header}>Увійти</Text>
-       
-        <TextInput
-          style={[styles.input, activeField === 'email' && styles.activeInput]}
-          type="text"
-          name="email"
-          inputMode="email"
-          required
-          placeholder="Адреса електронної пошти"
-          placeholderTextColor="#BDBDBD"
-          cursorColor="#FF6C00"
+          <View style={ getShowKeyboardStyle() }>
+            <Text style={styles.header}>Увійти</Text>
+            <TextInput
+              style={[styles.input, activeField === 'email' && styles.activeInput]}
+              type="text"
+              name="email"
+              inputMode="email"
+              required
+              placeholder="Адреса електронної пошти"
+              placeholderTextColor="#BDBDBD"
+              cursorColor="#FF6C00"
 
-          onFocus={() => setActiveField('email')}
-          onBlur={() => setActiveField(null)}
+              value={email}
+              onChangeText={setEmail}
+              onFocus={() => setActiveField('email')}
+              onBlur={() => setActiveField(null)}
+            />
+            <View>
+              <TextInput
+                style={[styles.input, activeField === 'password' && styles.activeInput]}
+                type="text"
+                name="password"
+                inputMode="text"
+                required
+                placeholder="Пароль"
+                placeholderTextColor="#BDBDBD"
+                cursorColor="#FF6C00"
 
-          value={email}
-          onChangeText={setEmail}
-          >
-        </TextInput>
+                secureTextEntry={!isPasswordVisible}
+                value={password}
+                onChangeText={setPassword}
+                onFocus={() => setActiveField('password')}
+                onBlur={() => setActiveField(null)}
+              />
 
-        <View>
-        <TextInput
-          style={[styles.input, activeField === 'password' && styles.activeInput]}
-          type="text"
-          name="password"
-          inputMode="text"
-          required
-          placeholder="Пароль"
-          placeholderTextColor="#BDBDBD"
-          cursorColor="#FF6C00"
+              <TouchableOpacity 
+                onPress={togglePasswordVisibility} 
+                style={styles.toggleButton}
+              >
+                <Text style={styles.toggleText}>
+                  {isPasswordVisible ? 'Приховати' : 'Показати'}
+                </Text>
+              </TouchableOpacity>
+            </View>
 
-          onFocus={() => setActiveField('password')}
-          onBlur={() => setActiveField(null)}
+          {isShowKeyboard && (
+            <>
+              <TouchableOpacity 
+                style={styles.registerbutton}
+                onPress={login}
+              >
+                <Text
+                  style={styles.registerbuttontext}
+                  >Увійти
+                </Text>
+              </TouchableOpacity>
 
-          secureTextEntry={!isPasswordVisible}
-          value={password}
-          onChangeText={setPassword}
-          >
-        </TextInput>
-
-          <TouchableOpacity onPress={togglePasswordVisibility} style={styles.toggleButton}>
-            <Text style={styles.toggleText}>
-               {isPasswordVisible ? 'Приховати' : 'Показати'}
-            </Text>
-          </TouchableOpacity>
+              <Text
+                style={styles.changepagetext}
+                onPress={() => navigation.navigate('Registration')}
+              >
+                Немає акаунту? Зареєструватися
+              </Text>
+            </>
+          )}
+          
           </View>
-
-        {isShowKeyboard && (
-        <>
-        <TouchableOpacity 
-          style={styles.registerbutton}
-          onPress={handleLogin}
-        >
-          <Text
-            style={styles.registerbuttontext}
-            >Увійти
-          </Text>
-        </TouchableOpacity>
-
-        <Text
-          style={styles.changepagetext}
-          onPress={() => navigation.navigate('Registration')}
-        >
-          Немає акаунту? Зареєструватися
-        </Text>
-        </>
-        )}
+        </ImageBackground>
         
-        </View>
-      </ImageBackground>
-      
-      <StatusBar style="auto" />
-    </KeyboardAvoidingView>
+        <StatusBar style="auto" />
+      </KeyboardAvoidingView>
 
     </TouchableWithoutFeedback>
   );

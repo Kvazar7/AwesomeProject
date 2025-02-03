@@ -11,38 +11,28 @@ import {  ImageBackground,
           StatusBar,
           Keyboard,
           KeyboardAvoidingView } from 'react-native';
-import { UserContext } from "./UserContext";
 import * as ImagePicker from 'expo-image-picker';
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import uuid from 'react-native-uuid';
+import { auth, storage } from '../Сonfig/firebaseConfig';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { UserContext } from "./UserContext";
+
 // import { useNavigation } from "@react-navigation/native";
 
 const Registration = ({navigation}) => {
   // const navigation = useNavigation;
 
-  const { photo, setPhoto, 
-          login, setLogin, 
-          email, setEmail, 
-          password, setPassword 
-        } = useContext(UserContext);
+  const { 
+    photo, setPhoto, 
+    login, setLogin, 
+    email, setEmail, 
+    password, setPassword 
+  } = useContext(UserContext);
 
-  // const [photo, setPhoto] = useState(null);
-  // const [login, setLogin] = useState('');
-  // const [email, setEmail] = useState('');
-  // const [password, setPassword] = useState('');
-  
-  const signIn = () => {
-    console.debug(`Login(Name): ${login}; Email: ${email}; Password: ${password}.`);
-  };
+  const [activeField, setActiveField] = useState(null);
+  const [isShowKeyboard, setIsShowKeyboard] = useState(true);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
-  function getRandom() {
-    return uuid.v4();
-  };
-
-  const handleEmptyFields = () => {
-    alert('Please fill in all fields');
-  };
-  
   const handleChoosePhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -53,7 +43,7 @@ const Registration = ({navigation}) => {
     if (!result.canceled) {
       const uri = result.assets[0].uri;
       setPhoto(uri);
-      savePhoto(uri);
+      // savePhoto(uri);
     }
   };
 
@@ -66,68 +56,91 @@ const Registration = ({navigation}) => {
     if (!result.canceled) {
       const uri = result.assets[0].uri;
       setPhoto(uri);
-      savePhoto(uri);
+      // savePhoto(uri);
     }
   };
 
-  const savePhoto = async (uri) => {
+  const uploadPhotoToFirebase = async (photoUri, userId) => {
     try {
-      await AsyncStorage.setItem('userPhoto', uri);
-      alert('Photo saved successfully!');
-    } catch (e) {
-      console.error('Failed to save the photo.', e);
-    }
-  };
 
-  const loadPhoto = async () => {
-    try {
-      const savedPhoto = await AsyncStorage.getItem('userPhoto');
-      if (savedPhoto) {
-        setPhoto(savedPhoto);
+      console.log('Uploading photo. URI:', photoUri);
+
+      const response = await fetch(photoUri);
+
+      console.log('Fetch response:', response);
+
+
+      if (!response.ok) {
+          throw new Error(`Failed to fetch the photo URI. Status: ${response.status}`);
       }
-    } catch (e) {
-      console.error('Failed to load the photo.', e);
-    }
-  };
 
-  const delPhoto = async () => {
-    setPhoto(null)
+      const blob = await response.blob();
+
+      console.log('Blob created successfully:', blob);
+
+
+      const photoRef = ref(storage, `users/${userId}/avatar.jpg`);
+
+      await uploadBytes(photoRef, blob);
+      const downloadURL = await getDownloadURL(photoRef);
+      
+      console.log('Photo uploaded successfully. URL:', downloadURL);
+
+      return downloadURL;
+    } catch (error) {
+      console.error("Error uploading photo to Firebase Storage:", error);
+      throw error;
+    }
   };
 
   const handleRegistration = async () => {
-    const storedLogin = await AsyncStorage.getItem('login');
-    const storedEmail = await AsyncStorage.getItem('email');
-    const storedPassword = await AsyncStorage.getItem('password');
-    
-    if (email === storedEmail) {
-      if (password === storedPassword) {
-        alert('Account already exists. Redirecting to Home.');
-        const sessionToken = getRandom();
-        await AsyncStorage.setItem('session', sessionToken);
-        signIn();
-        navigation.navigate('Home', { username: storedLogin });
-      } else {
-        alert('Email is already registered. You cannot change the password or login.');
-        return;
+    if (!login || !email || !password) {
+      alert("Please fill in all fields");
+      return;
+    }
+    try {
+      console.log('Starting registration...');
+
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      console.log('User created:', user);
+
+      if (photo) {
+        try {
+          console.log('Uploading photo...');
+
+          const avatarUrl = await uploadPhotoToFirebase(photo, user.uid);
+
+          console.log('Photo uploaded. URL:', avatarUrl);
+
+          await updateProfile(user, { 
+            displayName: login,
+            photoURL: avatarUrl });
+          
+          console.log('Profile updated.');
+        } catch (photoError) {
+          console.error("Failed to upload photo:", photoError.message);
+          alert("Photo upload failed. User registered without photo.");
+        }
       }
-    } else if (login === '' && email === '' && password === '') {
-      navigation.navigate('Login');
-    } else if (login === '' || email === '' || password === '') {
-      handleEmptyFields();
-    } else {
-      await AsyncStorage.setItem('login', login);
-      await AsyncStorage.setItem('email', email);
-      await AsyncStorage.setItem('password', password);
-      const sessionToken = getRandom();
-      await AsyncStorage.setItem('session', sessionToken);
-      signIn();
-      navigation.navigate('Home');
+      console.log('User registered:', user);
+      navigation.navigate("Home", { username: login });
+    } catch (error) {
+      if (error.code === 'auth/email-already-in-use') {
+        alert('Ця електронна адреса вже використовується.');
+      } else if (error.code === 'auth/weak-password') {
+        alert('Пароль повинен містити щонайменше 6 символів.');
+      } else {
+        alert('Сталася помилка. Спробуйте ще раз.');
+      }
+      console.error("Error during registration:", error);
     }
   };
   
-  const [activeField, setActiveField] = useState(null);
-  const [isShowKeyboard, setIsShowKeyboard] = useState(true);
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const delPhoto = async () => {
+    setPhoto(null)
+  };
 
   const togglePasswordVisibility = () => {
     setIsPasswordVisible(!isPasswordVisible);
@@ -147,17 +160,13 @@ const Registration = ({navigation}) => {
     };
   }, []);
 
-  useEffect(() => {
-    loadPhoto();
-  }, []);
-
   const getShowKeyboardStyle = () => {
     return isShowKeyboard ? styles.formWrapper : styles.formWrapperIsActive;
   };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <KeyboardAvoidingView 
+  <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+    <KeyboardAvoidingView 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
       >
@@ -165,124 +174,124 @@ const Registration = ({navigation}) => {
           source={require('../Img/PhotoBG.png')}
           style={styles.backgroundimage}
           >
-    <View style={ getShowKeyboardStyle() } >
-        
-        <TouchableOpacity style={styles.userPhoto} 
+      <View style={ getShowKeyboardStyle() } >
+        <TouchableOpacity 
+          style={styles.userPhoto} 
           onPress={handleChoosePhoto} 
-          onLongPress={handleTakePhoto}>
+          onLongPress={handleTakePhoto}
+        >
             {photo ? (
               <Image source={{ uri: photo }} style={styles.photo} />
               ) : (
               <Text style={styles.photoPlaceholder}>Tap to choose photo,{'\n'}long press to take a photo</Text>
             )}
             {photo ? (
-              <TouchableOpacity style={styles.userPhotoDel}
-                  onPress={delPhoto}>
+              <TouchableOpacity 
+                style={styles.userPhotoDel}
+                onPress={delPhoto}
+              >
                 <Image source={require('../Img/del.png')} />
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity style={styles.userPhotoAdd}
-                  onPress={handleChoosePhoto} 
-                  onLongPress={handleTakePhoto}>
+              <TouchableOpacity 
+                style={styles.userPhotoAdd}
+                onPress={handleChoosePhoto} 
+                onLongPress={handleTakePhoto}
+              >
                 <Image source={require('../Img/add.png')} />
               </TouchableOpacity>
-
             )}
         </TouchableOpacity>
 
-        <Text style={styles.header}>Реєстрація</Text>
-        
-        <TextInput
-          style={[styles.input, activeField === 'login' && styles.activeInput]}
-          type="text"
-          name="login"
-          inputMode="text"
-          title="Name may contain only letters, apostrophe, dash and spaces."
-          required
-          pattern="^[a-zA-Z0-9а-яА-Я]+(([' -][a-zA-Z0-9а-яА-Я ])?[a-zA-Z0-9а-яА-Я]*)*$"
-          placeholder="Логин"
-          placeholderTextColor="#BDBDBD"
-          cursorColor="#FF6C00"
-
-          onFocus={() => setActiveField('login')}
-          onBlur={() => setActiveField(null)}
-
-          value={login}
-          onChangeText={setLogin}
-          >
-        </TextInput>
-
-        <TextInput
-          style={[styles.input, activeField === 'email' && styles.activeInput]}
-          type="text"
-          name="email"
-          inputMode="email"
-          required
-          placeholder="Адреса електронної пошти"
-          placeholderTextColor="#BDBDBD"
-          cursorColor="#FF6C00"
-
-          onFocus={() => setActiveField('email')}
-          onBlur={() => setActiveField(null)}
-
-          value={email}
-          onChangeText={setEmail}
-          >
-        </TextInput>
-        <View>
-        <TextInput
-          style={[styles.input, activeField === 'password' && styles.activeInput]}
-          type="text"
-          name="password"
-          inputMode="text"
-          required
-          maxLength={25}
+          <Text style={styles.header}>Реєстрація</Text>
           
-          placeholder="Пароль"
-          placeholderTextColor="#BDBDBD"
-          cursorColor="#FF6C00"
+          <TextInput
+            style={[styles.input, activeField === 'login' && styles.activeInput]}
+            type="text"
+            name="login"
+            inputMode="text"
+            title="Name may contain only letters, apostrophe, dash and spaces."
+            required
+            pattern="^[a-zA-Z0-9а-яА-Я]+(([' -][a-zA-Z0-9а-яА-Я ])?[a-zA-Z0-9а-яА-Я]*)*$"
+            placeholder="Логин"
+            placeholderTextColor="#BDBDBD"
+            cursorColor="#FF6C00"
 
-          onFocus={() => setActiveField('password')}
-          onBlur={() => setActiveField(null)}
+            value={login}
+            onChangeText={setLogin}
+            onFocus={() => setActiveField('login')}
+            onBlur={() => setActiveField(null)}
+          />
 
-          secureTextEntry={!isPasswordVisible}
-          value={password}
-          onChangeText={setPassword}
-          >
-          </TextInput>
+          <TextInput
+            style={[styles.input, activeField === 'email' && styles.activeInput]}
+            type="text"
+            name="email"
+            inputMode="email"
+            required
+            placeholder="Адреса електронної пошти"
+            placeholderTextColor="#BDBDBD"
+            cursorColor="#FF6C00"
 
-          <TouchableOpacity onPress={togglePasswordVisibility} style={styles.toggleButton}>
-            <Text style={styles.toggleText}>
-               {isPasswordVisible ? 'Приховати' : 'Показати'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+            value={email}
+            onChangeText={setEmail}
+            onFocus={() => setActiveField('email')}
+            onBlur={() => setActiveField(null)}
+          />
+          
+          <View>
+          <TextInput
+            style={[styles.input, activeField === 'password' && styles.activeInput]}
+            type="text"
+            name="password"
+            inputMode="text"
+            required
+            maxLength={25}
+            placeholder="Пароль"
+            placeholderTextColor="#BDBDBD"
+            cursorColor="#FF6C00"
 
-        {isShowKeyboard && (
-          <>
-          <TouchableOpacity 
-            style={styles.registerbutton}
-            onPress={handleRegistration}  
-          >
-            <Text style={styles.registerbuttontext}>
-              Зареєстуватися
-            </Text>
-          </TouchableOpacity>
-
-            <Text 
-            style={styles.changepagetext}
-            onPress={() => navigation.navigate('Login')}
+            secureTextEntry={!isPasswordVisible}
+            value={password}
+            onChangeText={setPassword}
+            onFocus={() => setActiveField('password')}
+            onBlur={() => setActiveField(null)}
+          />
+            <TouchableOpacity 
+              onPress={togglePasswordVisibility} 
+              style={styles.toggleButton}
             >
-              Вже є акаунт? Увійти
-            </Text>
-          </>
-        )}
-                
+              <Text style={styles.toggleText}>
+                {isPasswordVisible ? 'Приховати' : 'Показати'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {isShowKeyboard && (
+            <>
+            <TouchableOpacity 
+              style={styles.registerbutton}
+              onPress={handleRegistration}  
+            >
+              <Text style={styles.registerbuttontext}>
+                Зареєстуватися
+              </Text>
+            </TouchableOpacity>
+
+              <Text 
+                style={styles.changepagetext}
+                onPress={() => navigation.navigate('Login')}
+              >
+                Вже є акаунт? Увійти
+              </Text>
+            </>
+          )}
+                  
       </View>
-      </ImageBackground>
+    </ImageBackground>
       <StatusBar style="auto" />
-      </KeyboardAvoidingView>
-      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
+  </TouchableWithoutFeedback>
   );
 };
 
@@ -300,8 +309,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 25,
     paddingHorizontal: 16,
     paddingBottom: 45,
-
-    
   },
 
   formWrapperIsActive: {
@@ -329,12 +336,10 @@ const styles = StyleSheet.create({
     top: -60,
     alignSelf: 'center',
     padding: 10,
-  
   },
 
   photoPlaceholder: {
-    color: "#BDBDBD"
-
+    color: "#BDBDBD",
   },
 
   photo: {
@@ -342,13 +347,11 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 16,
-
   },
 
   userPhotoAdd: {
     top: -5,
     left: 95,
-
   },
 
   userPhotoDel: {
@@ -358,18 +361,14 @@ const styles = StyleSheet.create({
 
   header: {
     marginTop: 92,
-    // marginRight: 'auto',
     marginBottom: 32,
-    // marginLeft: 'auto',
+    textAlign: 'center',
     
     fontFamily: 'Roboto-Medium',
     fontSize: 30,
     fontWeight: '500',
     lineHeight: 35,
     letterSpacing: 0.01,
-
-    textAlign: 'center',
-    
   },
 
   input: {
@@ -385,12 +384,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '400',
     lineHeight: 18.75,
-
   },
 
   activeInput: {
-    borderColor: '#FF6C00'
-
+    borderColor: '#FF6C00',
   },
 
   toggleButton: {
@@ -398,12 +395,10 @@ const styles = StyleSheet.create({
     top: 15,
     right: 16,
     pointerEvents: 'auto',
-
   },
 
   toggleText: {
     color: '#1B4371',
-    
   },
 
   registerbutton: {
@@ -414,7 +409,6 @@ const styles = StyleSheet.create({
     borderRadius: 100,
     justifyContent: 'center',
     alignItems: 'center',
-
   },
 
   registerbuttontext: {
@@ -424,7 +418,6 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     letterSpacing: 0.01,
     color: '#FFFFFF',
-    
   },
 
   changepagetext: {
@@ -435,7 +428,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.01,
     color: '#1B4371',
     textAlign: 'center',
-
   }
 });
 
