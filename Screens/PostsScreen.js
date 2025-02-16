@@ -11,7 +11,8 @@ import { UserContext } from "../Component/UserContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const PostsScreen = ({ route, navigation }) => {
-    const { photo, login, email } = useContext(UserContext);
+  const { user } = useContext(UserContext);
+  const { displayName, email, photoURL } = user || {};
 
     const handleLogOut = async (navigation) => {
         try {
@@ -40,15 +41,15 @@ const PostsScreen = ({ route, navigation }) => {
 
            <View style={styles.userProfileContainer}>
            
-                   {photo ? (
-                         <Image source={{ uri: photo }} style={styles.photo} />
+                   {photoURL ? (
+                         <Image source={{ uri: photoURL }} style={styles.photo} />
                          ) : (
                          <Image style={styles.userPhoto} />
                        )}
            
                      <View>
                        <Text style={styles.userName}>
-                           {login}
+                           {displayName}
                        </Text>
                        <Text style={styles.userEmail}>
                            {email}

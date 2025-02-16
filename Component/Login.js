@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import {  ImageBackground, 
           StyleSheet, 
@@ -10,14 +10,18 @@ import {  ImageBackground,
           Keyboard,
           Platform,
           TouchableOpacity } from 'react-native';
-import { handleLogin } from '../Services/AuthService';
+import { UserContext } from '../Component/UserContext';
+import { handleLogin, getUserData } from '../Services/AuthService';
 // import { useNavigation } from "@react-navigation/native";
 
 const Login = ({ navigation }) => {
   // const navigation = useNavigation;
+
+  const { setUser } = useContext(UserContext);
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  
+
   const [activeField, setActiveField] = useState(null);
   const [isShowKeyboard, setIsShowKeyboard] = useState(true);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -25,10 +29,13 @@ const Login = ({ navigation }) => {
   const login = async () => {
     try {
         const user = await handleLogin(email, password );
-        console.log('User registered:', user);
-        navigation.navigate("Home", { username: login });
+        const userData = await getUserData(user);
+        setUser(userData); 
+        console.log('User data:', userData);
+        navigation.navigate("Home");
     } catch (error) {
-        alert("Failed to register. Please try again.");
+        // alert("Failed to register. Please try again.");
+        throw error;
     }
   };
   
@@ -49,17 +56,6 @@ const Login = ({ navigation }) => {
       hideSubscription.remove();
     };
   }, []);
-  
-  // const handleLogin = async () => {
-  //   try {
-  //     const userCredential = await signInWithEmailAndPassword(auth, email, password);
-  //     console.log('User signed in:', userCredential.user);
-  //     navigation.navigate('Home', { username: userCredential.user.email });
-  //   } catch (error) {
-  //     console.error('Error during login:', error.message);
-  //     alert('Invalid login or password');
-  //   }
-  // };
 
   const getShowKeyboardStyle = () => {
     return isShowKeyboard ? styles.formWrapper : styles.formWrapperIsActive;

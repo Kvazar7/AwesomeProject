@@ -12,22 +12,26 @@ import {  ImageBackground,
           Keyboard,
           KeyboardAvoidingView } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { auth, storage } from '../Сonfig/firebaseConfig';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { handleRegistration } from "../Services/AuthService";
 import { UserContext } from "./UserContext";
-
 // import { useNavigation } from "@react-navigation/native";
 
 const Registration = ({navigation}) => {
   // const navigation = useNavigation;
 
-  const { 
-    photo, setPhoto, 
-    login, setLogin, 
-    email, setEmail, 
-    password, setPassword 
-  } = useContext(UserContext);
+  const { setUser } = useContext(UserContext);
+
+  const [photo, setPhoto] = useState(null);
+  const [login, setLogin] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  // const { 
+  //   photo, setPhoto, 
+  //   login, setLogin, 
+  //   email, setEmail, 
+  //   password, setPassword 
+  // } = useContext(UserContext);
 
   const [activeField, setActiveField] = useState(null);
   const [isShowKeyboard, setIsShowKeyboard] = useState(true);
@@ -43,7 +47,6 @@ const Registration = ({navigation}) => {
     if (!result.canceled) {
       const uri = result.assets[0].uri;
       setPhoto(uri);
-      // savePhoto(uri);
     }
   };
 
@@ -56,85 +59,19 @@ const Registration = ({navigation}) => {
     if (!result.canceled) {
       const uri = result.assets[0].uri;
       setPhoto(uri);
-      // savePhoto(uri);
-    }
-  };
-
-  const uploadPhotoToFirebase = async (photoUri, userId) => {
-    try {
-
-      console.log('Uploading photo. URI:', photoUri);
-
-      const response = await fetch(photoUri);
-
-      console.log('Fetch response:', response);
-
-
-      if (!response.ok) {
-          throw new Error(`Failed to fetch the photo URI. Status: ${response.status}`);
-      }
-
-      const blob = await response.blob();
-
-      console.log('Blob created successfully:', blob);
-
-
-      const photoRef = ref(storage, `users/${userId}/avatar.jpg`);
-
-      await uploadBytes(photoRef, blob);
-      const downloadURL = await getDownloadURL(photoRef);
       
-      console.log('Photo uploaded successfully. URL:', downloadURL);
-
-      return downloadURL;
-    } catch (error) {
-      console.error("Error uploading photo to Firebase Storage:", error);
-      throw error;
     }
   };
 
-  const handleRegistration = async () => {
-    if (!login || !email || !password) {
-      alert("Please fill in all fields");
-      return;
-    }
+  const handleRegistrationPress = async () => {
     try {
-      console.log('Starting registration...');
-
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-
-      console.log('User created:', user);
-
-      if (photo) {
-        try {
-          console.log('Uploading photo...');
-
-          const avatarUrl = await uploadPhotoToFirebase(photo, user.uid);
-
-          console.log('Photo uploaded. URL:', avatarUrl);
-
-          await updateProfile(user, { 
-            displayName: login,
-            photoURL: avatarUrl });
-          
-          console.log('Profile updated.');
-        } catch (photoError) {
-          console.error("Failed to upload photo:", photoError.message);
-          alert("Photo upload failed. User registered without photo.");
-        }
-      }
+      const user = await handleRegistration(email, password, login, photo);
+      const userData = { displayName: login, email, photoURL: photo };
+      setUser(userData); 
       console.log('User registered:', user);
-      navigation.navigate("Home", { username: login });
+      navigation.navigate("Home");
     } catch (error) {
-      if (error.code === 'auth/email-already-in-use') {
-        alert('Ця електронна адреса вже використовується.');
-      } else if (error.code === 'auth/weak-password') {
-        alert('Пароль повинен містити щонайменше 6 символів.');
-      } else {
-        alert('Сталася помилка. Спробуйте ще раз.');
-      }
-      console.error("Error during registration:", error);
+      alert("Failed to register. Please try again.");
     }
   };
   
@@ -271,7 +208,8 @@ const Registration = ({navigation}) => {
             <>
             <TouchableOpacity 
               style={styles.registerbutton}
-              onPress={handleRegistration}  
+              onPress={handleRegistrationPress}
+              // onPress={handleRegistration}  
             >
               <Text style={styles.registerbuttontext}>
                 Зареєстуватися
