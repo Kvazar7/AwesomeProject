@@ -12,7 +12,7 @@ import uuid from 'react-native-uuid';
 import { uploadPhotoToFirebase, savePostToAsyncStorage, savePostToFirestore } from "../Services/CreatPostService"
 import { db, storage } from '..//Сonfig/firebaseConfig'; 
 
-const CreatePost = ({navigation}) => {
+const CreatePost = ({ navigation, setLoading }) => {
   const [hasPermission, setHasPermission] = useState(null);
   const cameraRef = useRef(null);
   const [photo, setPhoto] = useState(null);
@@ -51,6 +51,7 @@ const CreatePost = ({navigation}) => {
   };
 
   const publishPost = async () => {
+    setLoading(true);
     setIsLocationFetching(true);
     try {
       const location = await Location.getCurrentPositionAsync({});
@@ -81,6 +82,7 @@ const CreatePost = ({navigation}) => {
       console.error("Помилка збереження постів:", error);
     } finally {
       setIsLocationFetching(false);
+      setLoading(false);
     }
   };
   

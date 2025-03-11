@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {  StyleSheet, 
   Text, 
   View, 
@@ -7,10 +7,14 @@ import {  StyleSheet,
   TouchableOpacity, 
   StatusBar, } from 'react-native';
 import CreatePost from '../Component/CreatPost';
+import LoadScreen from '../Component/LoadScreen'; // Екран завантаження
 
 const CreatePostScreen = ({ navigation }) => {
+  const [loading, setLoading] = useState(false);
+
   return (
   <SafeAreaView style={styles.container}>
+    {loading && <LoadScreen />} 
 
     <View style={styles.header}>
       <TouchableOpacity 
@@ -24,7 +28,7 @@ const CreatePostScreen = ({ navigation }) => {
             </Text>
     </View>
   
-    <CreatePost navigation={navigation} />
+    <CreatePost navigation={navigation} setLoading={setLoading} />
 
     <StatusBar style="auto" />
 

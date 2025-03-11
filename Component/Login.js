@@ -14,7 +14,7 @@ import { UserContext } from '../Component/UserContext';
 import { handleLogin, getUserData } from '../Services/AuthService';
 // import { useNavigation } from "@react-navigation/native";
 
-const Login = ({ navigation }) => {
+const Login = ({ navigation, setLoading }) => {
   // const navigation = useNavigation;
 
   const { setUser } = useContext(UserContext);
@@ -27,16 +27,19 @@ const Login = ({ navigation }) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
   const login = async () => {
+    setLoading(true);
     try {
         const user = await handleLogin(email, password );
         const userData = await getUserData(user);
-        setUser(userData); 
+        setUser(userData); // записуємо дані користувача в контекст
         console.log('User data:', userData);
         navigation.navigate("Home");
     } catch (error) {
-        // alert("Failed to register. Please try again.");
-        throw error;
-    }
+        alert("Failed to register. Please try again.");
+        // throw error;
+    } finally {
+        setLoading(false);
+  }
   };
   
   const togglePasswordVisibility = () => {

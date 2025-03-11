@@ -16,7 +16,7 @@ import { handleRegistration } from "../Services/AuthService";
 import { UserContext } from "./UserContext";
 // import { useNavigation } from "@react-navigation/native";
 
-const Registration = ({navigation}) => {
+const Registration = ({ navigation, setLoading }) => {
   // const navigation = useNavigation;
 
   const { setUser } = useContext(UserContext);
@@ -64,6 +64,7 @@ const Registration = ({navigation}) => {
   };
 
   const handleRegistrationPress = async () => {
+    setLoading(true);
     try {
       const user = await handleRegistration(email, password, login, photo);
       const userData = { displayName: login, email, photoURL: photo };
@@ -72,6 +73,8 @@ const Registration = ({navigation}) => {
       navigation.navigate("Home");
     } catch (error) {
       alert("Failed to register. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
   
