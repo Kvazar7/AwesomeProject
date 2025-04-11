@@ -11,9 +11,10 @@ import {  ImageBackground,
           StatusBar,
           Keyboard,
           KeyboardAvoidingView } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { handleRegistration } from "../Services/AuthService";
 import { UserContext } from "./UserContext";
+import { delPhoto, handleChoosePhoto, handleTakePhoto } from "../Services/AuthService";
+import { getAuth } from "firebase/auth";
 // import { useNavigation } from "@react-navigation/native";
 
 const Registration = ({ navigation, setLoading }) => {
@@ -25,41 +26,16 @@ const Registration = ({ navigation, setLoading }) => {
   const [login, setLogin] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-
-  // const { 
-  //   photo, setPhoto, 
-  //   login, setLogin, 
-  //   email, setEmail, 
-  //   password, setPassword 
-  // } = useContext(UserContext);
-
   const [activeField, setActiveField] = useState(null);
   const [isShowKeyboard, setIsShowKeyboard] = useState(true);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const auth = getAuth();
 
-  const handleChoosePhoto = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
-    if (!result.canceled) {
-      const uri = result.assets[0].uri;
-      setPhoto(uri);
-    }
-  };
-
-  const handleTakePhoto = async () => {
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
-    if (!result.canceled) {
-      const uri = result.assets[0].uri;
-      setPhoto(uri);
-      
+  const handleDelPhoto = async () => {
+    try {
+      await delPhoto(auth, setPhoto);
+    } catch (error) {
+      console.error("Error deleting photo:", error);
     }
   };
 
@@ -67,7 +43,12 @@ const Registration = ({ navigation, setLoading }) => {
     setLoading(true);
     try {
       const user = await handleRegistration(email, password, login, photo);
-      const userData = { displayName: login, email, photoURL: photo };
+      const userData = { 
+        userId: user.uid,
+        displayName: login, 
+        email, 
+        photoURL: photo 
+      };
       setUser(userData); 
       console.log('User registered:', user);
       navigation.navigate("Home");
@@ -76,10 +57,6 @@ const Registration = ({ navigation, setLoading }) => {
     } finally {
       setLoading(false);
     }
-  };
-  
-  const delPhoto = async () => {
-    setPhoto(null)
   };
 
   const togglePasswordVisibility = () => {
@@ -117,8 +94,8 @@ const Registration = ({ navigation, setLoading }) => {
       <View style={ getShowKeyboardStyle() } >
         <TouchableOpacity 
           style={styles.userPhoto} 
-          onPress={handleChoosePhoto} 
-          onLongPress={handleTakePhoto}
+          onPress={() => handleChoosePhoto(setPhoto, null, false)}  
+          onLongPress={() => handleTakePhoto(setPhoto, null, false)}
         >
             {photo ? (
               <Image source={{ uri: photo }} style={styles.photo} />
@@ -128,15 +105,15 @@ const Registration = ({ navigation, setLoading }) => {
             {photo ? (
               <TouchableOpacity 
                 style={styles.userPhotoDel}
-                onPress={delPhoto}
+                onPress={handleDelPhoto}
               >
                 <Image source={require('../Img/del.png')} />
               </TouchableOpacity>
             ) : (
               <TouchableOpacity 
                 style={styles.userPhotoAdd}
-                onPress={handleChoosePhoto} 
-                onLongPress={handleTakePhoto}
+                onPress={() => handleChoosePhoto(setPhoto, null, false)} 
+                onLongPress={() => handleTakePhoto(setPhoto, null, false)}
               >
                 <Image source={require('../Img/add.png')} />
               </TouchableOpacity>

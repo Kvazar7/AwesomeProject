@@ -14,53 +14,54 @@ const PostsScreen = ({ route, navigation }) => {
   const { user } = useContext(UserContext);
   const { displayName, email, photoURL } = user || {};
 
-    const handleLogOut = async (navigation) => {
-        try {
-          await AsyncStorage.removeItem('session'); 
-          navigation.navigate('Login');
-        } catch (e) {
-          console.error('Failed to log out.', e);
-        }
-      };
+  const handleLogOut = async (navigation) => {
+    try {
+      await AsyncStorage.removeItem('session'); 
+      navigation.navigate('Login');
+    } catch (e) {
+      console.error('Failed to log out.', e);
+    }
+  };
+
+  // Перехід на екран коментарів
+  // const handleNavigateToComments = (post) => {
+  //   navigation.navigate('ComentsScreen', { post });
+  // };
 
     return (
        <SafeAreaView style={styles.container}>
-           <View style={styles.header}>
-             <Text style={styles.headerPageName}>
-                Публікації
-             </Text>
-             <TouchableOpacity 
-                style={styles.logOutBtn}
-                onPress={() => handleLogOut(navigation)}  
-              >
-                <Image source={require('../Img/log-out.png')} />   
-             </TouchableOpacity>
-           </View>
+          <View style={styles.header}>
+            <Text style={styles.headerPageName}>
+              Публікації
+            </Text>
+            <TouchableOpacity 
+              style={styles.logOutBtn}
+              onPress={() => handleLogOut(navigation)}  
+            >
+              <Image source={require('../Img/log-out.png')} />   
+            </TouchableOpacity>
+          </View>
 
-           <View style={styles.contentContainer}>
+          <View style={styles.contentContainer}>
+            <View style={styles.userProfileContainer}>
+              {photoURL ? (
+                <Image source={{ uri: photoURL }} style={styles.photo} />
+                ) : (
+                  <Image style={styles.userPhoto} />
+                )}
+                  <View>
+                    <Text style={styles.userName}>
+                      {displayName}
+                    </Text>
+                    <Text style={styles.userEmail}>
+                      {email}
+                    </Text>
+                  </View>
+            </View>
 
-           <View style={styles.userProfileContainer}>
-           
-                   {photoURL ? (
-                         <Image source={{ uri: photoURL }} style={styles.photo} />
-                         ) : (
-                         <Image style={styles.userPhoto} />
-                       )}
-           
-                     <View>
-                       <Text style={styles.userName}>
-                           {displayName}
-                       </Text>
-                       <Text style={styles.userEmail}>
-                           {email}
-                       </Text>
-                     </View>
-           
-                   </View>
+              <Posts route={route} navigation={navigation} />
 
-           <Posts route={route} navigation={navigation} />
-
-           </View>
+          </View>
 
         <StatusBar style="auto" />
        </SafeAreaView>
@@ -71,7 +72,6 @@ const PostsScreen = ({ route, navigation }) => {
       container:{
         flex: 1,
         backgroundColor: '#FFFFFF',
-        
       },
     
       header: {
@@ -90,7 +90,6 @@ const PostsScreen = ({ route, navigation }) => {
         fontSize: 17,
         lineHeight: 22,
         letterSpacing: 0.41,
-    
         paddingBottom: 11,
       },
     

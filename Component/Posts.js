@@ -6,16 +6,28 @@ import {  StyleSheet,
           Image, 
           TouchableOpacity, } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getCommentCountForPost } from "../Services/ComentsService";
 
 const Posts = ({ route, navigation }) => {
   const [posts, setPosts] = useState([]);
+  const [commentCounts, setCommentCounts] = useState({});
 
   useEffect(() => {
     const loadPosts = async () => {
       try {
         const storedPosts = await AsyncStorage.getItem('posts');
         if (storedPosts) {
+          const parsedPosts = JSON.parse(storedPosts);
           setPosts(JSON.parse(storedPosts));
+
+          // Отримуємо кількість коментарів для кожного поста
+          const counts = {};
+          for (const post of parsedPosts) {
+            const count = await getCommentCountForPost(post.id);
+            counts[post.id] = count;
+          }
+          setCommentCounts(counts);
+
         }
       } catch (error) {
         console.error('Помилка завантаження постів:', error);
@@ -50,7 +62,7 @@ const Posts = ({ route, navigation }) => {
   return (
       <>
         <FlatList
-          style={styles.postListContainer}
+            style={styles.postListContainer}
             data={posts}
             keyExtractor={( item ) => item.id.toString()}
             renderItem={({ item }) => (
@@ -65,11 +77,11 @@ const Posts = ({ route, navigation }) => {
                 <View style={styles.discription}>
                   <TouchableOpacity 
                     style={styles.leftPartDiscription}
-                    onPress={() => navigation.navigate('ComentsScreen')}
+                    onPress={() => navigation.navigate('ComentsScreen', { post: item })}
                   >
                     <Image style={styles.comentsIcon} source={require('../Img/noOneCommentIcon.png')} />
                     <Text style={styles.comentCounter}>
-                      100
+                      {commentCounts[item.id] || 0} {/* Відображаємо кількість коментарів */}
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
@@ -78,7 +90,6 @@ const Posts = ({ route, navigation }) => {
                       latitude: item.locationCoord.latitude, 
                       longitude: item.locationCoord.longitude,
                       description: item.description,
-                      
                     })}
                   >
                     <Image style={styles.locationIcon} source={require('../Img/locationIcon.png')} />

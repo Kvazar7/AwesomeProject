@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import {  ImageBackground, 
           StyleSheet, 
           Text, 
@@ -8,48 +8,35 @@ import {  ImageBackground,
           Platform, 
           StatusBar,
           KeyboardAvoidingView } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 // import { useNavigation } from "@react-navigation/native";
+import { UserContext } from "../Component/UserContext";
+import { getAuth } from "firebase/auth";
+import { delPhoto, handleChoosePhoto, handleTakePhoto } from "../Services/AuthService";
 import Profile from "../Component/Profile";
 
 const ProfileScreen =({ route, navigation }) => {
 //   const navigation = useNavigation;
-  const [photo, setPhoto] = useState(null);
-  
-  const handleChoosePhoto = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
-    if (!result.canceled) {
-      const uri = result.assets[0].uri;
-      setPhoto(uri);
-      savePhoto(uri);
-    }
-  };
+  const { user, setUser } = useContext(UserContext);
+  const [ photo, setPhoto ] = useState(null);
+  const { displayName, photoURL } = user || {};
+  const auth = getAuth();
 
-  const handleTakePhoto = async () => {
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
-    if (!result.canceled) {
-      const uri = result.assets[0].uri;
-      setPhoto(uri);
-      savePhoto(uri);
-    }
-  };
-
-  const savePhoto = async (uri) => {
+  const handleDelPhoto = async () => {
     try {
-      await AsyncStorage.setItem('userPhoto', uri);
-      alert('Photo saved successfully!');
+      await delPhoto(auth, setPhoto, setUser);
+      await updateUserContext(); 
+    } catch (error) {
+      console.error("Error deleting photo:", error);
+    }
+  };
+
+  const handleLogOut = async (navigation) => {
+    try {
+      await AsyncStorage.removeItem('session'); 
+      navigation.navigate('Login');
     } catch (e) {
-      console.error('Failed to save the photo.', e);
+      console.error('Failed to log out.', e);
     }
   };
 
@@ -64,22 +51,13 @@ const ProfileScreen =({ route, navigation }) => {
     }
   };
 
-  const delPhoto = async () => {
-    setPhoto(null)
-  };
-
-  const handleLogOut = async (navigation) => {
-    try {
-      await AsyncStorage.removeItem('session'); 
-      navigation.navigate('Login');
-    } catch (e) {
-      console.error('Failed to log out.', e);
-    }
-  };
-
   useEffect(() => {
     loadPhoto();
   }, []);
+
+  useEffect(() => {
+    setPhoto(photoURL); // Синхронізуємо локальний стан з контекстом
+  }, [photoURL]);
   
   return (
     <KeyboardAvoidingView 
@@ -92,23 +70,30 @@ const ProfileScreen =({ route, navigation }) => {
               >
         <View style={styles.formWrapper}>
             
-        <TouchableOpacity style={styles.userPhoto} 
-              onPress={handleChoosePhoto} 
-              onLongPress={handleTakePhoto}>
-                {photo ? (
-                  <Image source={{ uri: photo }} style={styles.photo} />
+        <TouchableOpacity 
+          style={styles.userPhoto} 
+          onPress={() => handleChoosePhoto(setPhoto, setUser, true)}  
+          onLongPress={() => handleTakePhoto(setPhoto, setUser, true)}
+        >
+                {photoURL ? (
+                  <Image source={{ uri: photoURL }} style={styles.photo} />
                   ) : (
-                  <Text style={styles.photoPlaceholder}>Tap to choose photo,{'\n'}long press to take a photo</Text>
+                  <Text style={styles.photoPlaceholder}>
+                    Tap to choose photo,{'\n'}long press to take a photo
+                  </Text>
                 )}
-                {photo ? (
-                  <TouchableOpacity style={styles.userPhotoDel}
-                      onPress={delPhoto}>
+                {photoURL ? (
+                  <TouchableOpacity 
+                      style={styles.userPhotoDel}
+                      onPress={handleDelPhoto}>
                     <Image source={require('../Img/del.png')} />
                   </TouchableOpacity>
                 ) : (
-                  <TouchableOpacity style={styles.userPhotoAdd}
-                      onPress={handleChoosePhoto} 
-                      onLongPress={handleTakePhoto}>
+                  <TouchableOpacity 
+                      style={styles.userPhotoAdd}
+                      onPress={() => handleChoosePhoto(setPhoto, setUser, true)}  
+                      onLongPress={() => handleTakePhoto(setPhoto, setUser, true)}
+                  >
                     <Image source={require('../Img/add.png')} />
                   </TouchableOpacity>
                 )}
@@ -120,7 +105,9 @@ const ProfileScreen =({ route, navigation }) => {
           <Image source={require('../Img/log-out.png')} />   
         </TouchableOpacity>
     
-            <Text style={styles.header}>User Name</Text>
+
+
+            <Text style={styles.header}>{displayName}</Text>
 
             <Profile route={route} navigation={navigation}/>
             

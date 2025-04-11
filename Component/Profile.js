@@ -7,17 +7,66 @@ import {  StyleSheet,
           FlatList } from 'react-native';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 // import { useNavigation } from "@react-navigation/native";
+import { getCommentCountForPost } from "../Services/ComentsService";
 
 const Profile = ({ route, navigation }) => {
   // const navigation = useNavigation;
   const [posts, setPosts] = useState([]);
+  const [commentCounts, setCommentCounts] = useState({});
+  const [countries, setCountries] = useState({});
+  const apiKey = Constants.expoConfig.extra.googleMapsApiKey;
+
+  // Функція для отримання назви країни за координатами
+const getCountryName = async (latitude, longitude) => {
+  try {
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`
+    );
+    const data = await response.json();
+    if (data.results && data.results.length > 0) {
+      const addressComponents = data.results[0].address_components;
+      const country = addressComponents.find((component) =>
+        component.types.includes("country")
+      );
+      return country ? country.long_name : "Unknown Country";
+    }
+    return "Unknown Country";
+  } catch (error) {
+    console.error("Error fetching country name:", error);
+    return "Unknown Country";
+  }
+};
   
   useEffect(() => {
     const loadPosts = async () => {
       try {
         const storedPosts = await AsyncStorage.getItem('posts');
         if (storedPosts) {
+          const parsedPosts = JSON.parse(storedPosts);
           setPosts(JSON.parse(storedPosts));
+
+          const userPosts = parsedPosts.filter((post) => post.userId === user.userId);
+          setPosts(userPosts);
+
+          // Отримуємо кількість коментарів для кожного поста
+          const counts = {};
+          for (const post of parsedPosts) {
+            const count = await getCommentCountForPost(post.id);
+            counts[post.id] = count;
+          }
+          setCommentCounts(counts);
+
+          // Отримуємо назви країн для кожного поста
+          const countryNames = {};
+          for (const post of parsedPosts) {
+            if (post.locationCoord) {
+              const { latitude, longitude } = post.locationCoord;
+              const countryName = await getCountryName(latitude, longitude);
+              countryNames[post.id] = countryName;
+            }
+          }
+          setCountries(countryNames);
+
         }
       } catch (error) {
         console.error('Помилка завантаження постів:', error);
@@ -67,11 +116,11 @@ const Profile = ({ route, navigation }) => {
           <View style={styles.discription}>
             <TouchableOpacity 
               style={styles.leftPartDiscription}
-              onPress={() => navigation.navigate('ComentsScreen')}
+              onPress={() => navigation.navigate('ComentsScreen', { post: item })}
             >
               <Image style={styles.comentsIcon} source={require('../Img/noOneCommentIcon.png')} />
                 <Text style={styles.comentCounter}>
-                  100
+                {commentCounts[item.id] || 0} {/* Відображаємо кількість коментарів */}
                 </Text>
             </TouchableOpacity>
               <TouchableOpacity 
@@ -84,7 +133,7 @@ const Profile = ({ route, navigation }) => {
               >
                 <Image style={styles.locationIcon} source={require('../Img/locationIcon.png')} />
                   <Text style={styles.locationDiscription}>
-                    {item.locationInput}
+                  {countries[item.id] || "Loading..."} {/* Відображаємо назву країни */}
                   </Text>
               </TouchableOpacity>
           </View>
@@ -97,7 +146,6 @@ const Profile = ({ route, navigation }) => {
 
 const styles = StyleSheet.create({
   // Перевірити всі стилі !!!
-    
   postListContainer: {
     flex: 1, 
     paddingTop: 32,

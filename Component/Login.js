@@ -18,10 +18,8 @@ const Login = ({ navigation, setLoading }) => {
   // const navigation = useNavigation;
 
   const { setUser } = useContext(UserContext);
-  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-
   const [activeField, setActiveField] = useState(null);
   const [isShowKeyboard, setIsShowKeyboard] = useState(true);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -191,13 +189,11 @@ const styles = StyleSheet.create({
     marginTop: 32,
     marginBottom: 16,
     paddingVertical: 8,
-    
     fontFamily: 'Roboto-Medium',
     fontSize: 30,
     fontWeight: '500',
     lineHeight: 35,
     letterSpacing: 0.01,
-    
     textAlign: 'center',
   },
   
@@ -214,7 +210,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '400',
     lineHeight: 18.75,
-
+    
   },
 
   activeInput: {

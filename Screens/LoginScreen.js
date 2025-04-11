@@ -9,7 +9,7 @@ const LoginScreen = ({ navigation }) => {
     return (
         <>
         {loading && <LoadScreen />} 
-        <Login navigation={navigation} setLoading={setLoading}/>;
+        <Login navigation={navigation} setLoading={setLoading}/>
         </>
     );
 };

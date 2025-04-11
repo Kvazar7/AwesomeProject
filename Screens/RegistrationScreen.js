@@ -8,7 +8,7 @@ const RegistrationScreen = ({ navigation }) => {
     return (
         <>
         {loading && <LoadScreen />} 
-        <Registration navigation={navigation} setLoading={setLoading} />;
+        <Registration navigation={navigation} setLoading={setLoading} />
         </>
     );
 };

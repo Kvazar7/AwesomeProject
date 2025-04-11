@@ -1,23 +1,22 @@
 import { auth, storage } from '../Сonfig/firebaseConfig';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, getAuth } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import * as ImagePicker from 'expo-image-picker';
 
 export const uploadPhotoToFirebase = async (photoUri, userId) => {
-    try {
-      const response = await fetch(photoUri);
-      
-      if (!response.ok) {
-          throw new Error(`Failed to fetch the photo URI. Status: ${response.status}`);
-      }
-      const blob = await response.blob();
-      const photoRef = ref(storage, `users/${userId}/avatar.jpg`);
-      await uploadBytes(photoRef, blob);
-      const downloadURL = await getDownloadURL(photoRef);
-      return downloadURL;
-    } catch (error) {
-      console.error("Error uploading photo to Firebase Storage:", error);
-      throw error;
-    }
+  try {
+    const response = await fetch(photoUri);
+    const blob = await response.blob();
+
+    const storageRef = ref(storage, `avatars/${userId}`);
+    await uploadBytes(storageRef, blob);
+
+    const downloadURL = await getDownloadURL(storageRef);
+    return downloadURL;
+  } catch (error) {
+    console.error("Error uploading photo to Firebase:", error);
+    throw error;
+  }
 };
 
 export const handleRegistration = async (email, password, login, photo) => {
@@ -75,10 +74,103 @@ export const handleLogin = async (email, password) => {
 
 export const getUserData = async (user) => {
   try {
-    const { displayName, email, photoURL } = user;
-    return { displayName, email, photoURL };
+    const { uid, displayName, email, photoURL } = user;
+    return { 
+      userId: uid,
+      displayName: displayName || 'Anonymous',
+      email: email || 'No email',
+      photoURL: photoURL || 'https://www.pngkey.com/png/full/114-1149878_setting-user-avatar-in-specific-size-without-breaking.png' 
+    };
   } catch (error) {
     console.error("Error fetching user data:", error);
+    throw error;
+  }
+};
+
+export const delPhoto = async (auth, setPhoto, setUser) => {
+  try {
+    await updateProfile(auth.currentUser, { photoURL: null });
+    setPhoto(null); // Очищаємо локальний стан
+    if (setUser) {
+      setUser((prevUser) => ({
+        ...prevUser,
+        photoURL: null,
+      }));
+    }
+    alert("Photo removed successfully!");
+  } catch (error) {
+    console.error("Failed to delete photo:", error);
+    throw error;
+  }
+};
+
+export const handleChoosePhoto = async (setPhoto, setUser = null, shouldUpload = false) => {
+  try {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
+    if (!result.canceled) {
+      const uri = result.assets[0].uri;
+      setPhoto(uri);
+      if (shouldUpload) {
+        const auth = getAuth();
+        const userId = auth.currentUser?.uid;
+        if (userId) {
+          // Завантажуємо фото в Firebase Storage
+          const downloadURL = await uploadPhotoToFirebase(uri, userId);
+          // Оновлюємо профіль користувача
+          await updateProfile(auth.currentUser, { photoURL: downloadURL });
+          // Оновлюємо контекст користувача, якщо передано setUser
+          if (setUser) {
+            setUser((prevUser) => ({
+              ...prevUser,
+              photoURL: downloadURL,
+            }));
+          }
+          alert("Photo updated successfully!");
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error choosing photo:", error);
+    throw error;
+  }
+};
+
+export const handleTakePhoto = async (setPhoto, setUser = null, shouldUpload = false) => {
+  try {
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
+    if (!result.canceled) {
+      const uri = result.assets[0].uri;
+      setPhoto(uri);
+      if (shouldUpload) {
+        const auth = getAuth();
+        const userId = auth.currentUser?.uid;
+        if (userId) {
+          // Завантажуємо фото в Firebase Storage
+          const downloadURL = await uploadPhotoToFirebase(uri, userId);
+          // Оновлюємо профіль користувача
+          await updateProfile(auth.currentUser, { photoURL: downloadURL });
+          // Оновлюємо контекст користувача, якщо передано setUser
+          if (setUser) {
+            setUser((prevUser) => ({
+              ...prevUser,
+              photoURL: downloadURL,
+            }));
+          }
+          alert("Photo updated successfully!");
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error taking photo:", error);
     throw error;
   }
 };
