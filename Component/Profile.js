@@ -23,7 +23,7 @@ const getCountryName = async (latitude, longitude) => {
       `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`
     );
     const data = await response.json();
-    if (data.results && data.results.length > 0) {
+    if (data.results && data.results.length > 0) { 
       const addressComponents = data.results[0].address_components;
       const country = addressComponents.find((component) =>
         component.types.includes("country")

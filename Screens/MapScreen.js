@@ -25,7 +25,6 @@ const MapScreen = ({ route, navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-
       <View style={styles.header}>
             <TouchableOpacity 
               style={styles.BackBtn}

@@ -23,11 +23,6 @@ const PostsScreen = ({ route, navigation }) => {
     }
   };
 
-  // Перехід на екран коментарів
-  // const handleNavigateToComments = (post) => {
-  //   navigation.navigate('ComentsScreen', { post });
-  // };
-
     return (
        <SafeAreaView style={styles.container}>
           <View style={styles.header}>
