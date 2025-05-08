@@ -1,25 +1,34 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import { View, 
         Image, 
         Text, 
         TouchableOpacity, 
         StyleSheet, 
-        TextInput, } from 'react-native';
+        TextInput, 
+        Platform,
+        KeyboardAvoidingView, 
+        Keyboard, 
+        TouchableWithoutFeedback,
+        ScrollView
+      } from 'react-native';
 import { Camera, CameraView  } from "expo-camera";
 import * as MediaLibrary from "expo-media-library";
 import * as Location from 'expo-location';
 import uuid from 'react-native-uuid';
 import { uploadPhotoToFirebase, savePostToAsyncStorage, savePostToFirestore } from "../Services/CreatPostService"
-import { db, storage } from '..//Сonfig/firebaseConfig'; 
+import { db, storage } from '..//Сonfig/firebaseConfig';
+import { UserContext } from "../Component/UserContext";
 
 const CreatePost = ({ navigation, setLoading }) => {
   const [hasPermission, setHasPermission] = useState(null);
   const cameraRef = useRef(null);
+  const { user } = useContext(UserContext);
   const [photo, setPhoto] = useState(null);
   const [description, setDescription] = useState(''); 
   const [locationInput, setLocationInput] = useState('');
   const [locationCoord, setLocation] = useState(null);
   const [isLocationFetching, setIsLocationFetching] = useState(false); 
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -46,6 +55,21 @@ const CreatePost = ({ navigation, setLoading }) => {
     } 
   };
 
+  useEffect(() => {
+    // Додаємо слухачі для подій клавіатури
+    const keyboardDidShowListener = Keyboard.addListener("keyboardDidShow", () => {
+      setIsKeyboardVisible(true);
+    });
+    const keyboardDidHideListener = Keyboard.addListener("keyboardDidHide", () => {
+      setIsKeyboardVisible(false);
+    });
+    // Видаляємо слухачі при розмонтуванні компонента
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
+
   function getId() {
     return uuid.v4();
   };
@@ -60,16 +84,15 @@ const CreatePost = ({ navigation, setLoading }) => {
       if (photo && description.trim() && locationInput !== "") {
         // Завантаження фото
         const photoURL = await uploadPhotoToFirebase(photo, storage);
-  
         // Створення об'єкта поста
         const newPost = {
           id: getId(), // Генерація унікального ID
+          userId: user.userId,
           photo: photoURL,
           description,
           locationInput,
           locationCoord: location.coords,
         };
-  
         // Збереження поста
         await savePostToAsyncStorage(newPost);
         await savePostToFirestore(newPost, db);
@@ -100,7 +123,13 @@ const CreatePost = ({ navigation, setLoading }) => {
   }
 
     return (
-      <View style={styles.contentContainer}>
+    <KeyboardAvoidingView 
+      style={{ flex: 1 }} 
+      behavior={Platform.OS === "ios" ? "padding" : "height"} 
+      keyboardVerticalOffset={10} // Відступ до клавіатури
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <ScrollView contentContainerStyle={styles.contentContainer}>
         <View style={styles.postPicture}>
           {photo ? (
             <Image source={{ uri: photo }} style={styles.photo} />
@@ -167,18 +196,22 @@ const CreatePost = ({ navigation, setLoading }) => {
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={styles.trashBtn} 
+            style={[
+              styles.trashBtn, 
+              { marginTop: isKeyboardVisible ? 20 : 120 } // Динамічний відступ
+            ]}
             onPress={clearPost}
           >
             <Image style={styles.trashIcon} source={require('../Img/trash.png')} />
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
     );
   };
   
   const styles = StyleSheet.create({
-  
     contentContainer: {
       paddingTop: 32,
       paddingLeft: 16,
@@ -255,7 +288,6 @@ const CreatePost = ({ navigation, setLoading }) => {
     locationIcon: {
       position: 'absolute',
       bottom: 13,
-      
     },
   
     publishBtn: {
@@ -297,7 +329,6 @@ const CreatePost = ({ navigation, setLoading }) => {
     },
   
     trashBtn: {
-      marginTop: 120,
       width: 70,
       height: 40,
       backgroundColor: '#F6F6F6',

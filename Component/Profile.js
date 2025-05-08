@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import {  StyleSheet, 
           Text, 
           View, 
@@ -6,11 +6,14 @@ import {  StyleSheet,
           TouchableOpacity,
           FlatList } from 'react-native';
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { UserContext } from "../Component/UserContext";
 // import { useNavigation } from "@react-navigation/native";
 import { getCommentCountForPost } from "../Services/ComentsService";
+import Constants from 'expo-constants';
 
 const Profile = ({ route, navigation }) => {
   // const navigation = useNavigation;
+  const { user } = useContext(UserContext);
   const [posts, setPosts] = useState([]);
   const [commentCounts, setCommentCounts] = useState({});
   const [countries, setCountries] = useState({});
@@ -39,9 +42,11 @@ const getCountryName = async (latitude, longitude) => {
   
   useEffect(() => {
     const loadPosts = async () => {
-      try {
+      try {        
         const storedPosts = await AsyncStorage.getItem('posts');
         if (storedPosts) {
+          console.log("user.userId:", user.userId);
+        console.log("storedPosts:", parsedPosts);
           const parsedPosts = JSON.parse(storedPosts);
           setPosts(JSON.parse(storedPosts));
 
@@ -73,7 +78,7 @@ const getCountryName = async (latitude, longitude) => {
       }
     };
     loadPosts();
-  }, []);
+  }, [user.userId]);
   
   useEffect(() => {
     const savePosts = async (updatedPosts) => {
